@@ -34,7 +34,6 @@ class Defragmenter:
         for cluster in self.fat_reader.clusters:
             if cluster.next_index == 0:  # В FAT32, 0 означает свободный кластер
                 free.append(cluster.index)
-        print(f"Найдено {len(free)} свободных кластеров.")
         return free
 
     def _find_free_blocks(self):
@@ -55,7 +54,6 @@ class Defragmenter:
                 current_block = [cluster]
         if current_block:
             blocks.append(current_block)
-        print(f"Найдено {len(blocks)} свободных блоков кластеров.")
         return blocks
 
     def _find_best_fit_free_clusters(self, clusters_count : int) -> list[int]:
@@ -109,7 +107,6 @@ class Defragmenter:
 
         # Сравниваем хеш-суммы
         if self.calculate_md5(old_data) != self.calculate_md5(new_data_after):
-            print(f"Ошибка копирования данных: Кластер {old_cluster_index} не совпадает с {new_cluster_index}.")
             raise Exception(f"Ошибка копирования данных: Кластер {old_cluster_index} не совпадает с {new_cluster_index}.")
         else:
             print(f"Данные из кластера {old_cluster_index} успешно скопированы в {new_cluster_index}.")
@@ -165,7 +162,7 @@ class Defragmenter:
 
             # Проверяем, является ли файл фрагментированным
             if self.is_fragmented(cluster_chain):
-                print(f"Файл '{file['path']}' фрагментирован. Перемещаем...")
+                print(f"Файл '{file['path']}' фрагментирован {[cluster.index for cluster in cluster_chain]}. Перемещаем...")
 
                 clusters_count = len(cluster_indices)
                 new_clusters = self._allocate_clusters(clusters_count)
