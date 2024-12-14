@@ -102,7 +102,7 @@ class FragmentationChecker:
 
     def is_fragmented(self, cluster_chain):
         for i in range(len(cluster_chain) - 1):
-            if cluster_chain[i].next_index != (cluster_chain[i + 1].index):
+            if cluster_chain[i].next_index != (cluster_chain[i].index + 1):
                 return True
         return False
 
@@ -110,15 +110,19 @@ class FragmentationChecker:
         fragmented_files = []
         for file_entry in files:
             cluster_chain = self.fat_reader.get_cluster_chain(file_entry["starting_cluster"])
+            for ind in [cluster.index for cluster in cluster_chain]:
+                print(ind, end=" ")
+            print()
             if self.is_fragmented(cluster_chain):
                 fragmented_files.append({
                     "path": file_entry["path"],
                     "cluster_chain": [cluster.index for cluster in cluster_chain]
                 })
+
         return fragmented_files
 
 if __name__ == "__main__":
-    image_path = "FAT_32_32MB"  # Убедитесь, что расширение корректно
+    image_path = "FAT_32_fragmented"  # Убедитесь, что расширение корректно
     bpb = BPB(image_path)
     print(f"BPB: bytes_per_sec={bpb.byts_per_sec}, sec_per_clus={bpb.sec_per_clus}, reserved_sec_cnt={bpb.reserved_sec_cnt}, num_FATs={bpb.num_FATs}, total_sec_32={bpb.total_sec_32}, FAT_size_32={bpb.FAT_size_32}, root_clus={bpb.root_clus}")
     fat_reader = FATReader(image_path, bpb)
