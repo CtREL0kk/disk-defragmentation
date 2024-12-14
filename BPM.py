@@ -1,7 +1,10 @@
 import struct
 
 class BPB:
-    def __init__(self, image_path):
+    def __init__(self, image_path : str) -> None:
+        '''
+        Класс для чтения BPB
+        '''
         with open(image_path, 'rb') as image_file:
             first_sector = image_file.read(512)
             self.byts_per_sec = struct.unpack("<H", first_sector[11:13])[0]

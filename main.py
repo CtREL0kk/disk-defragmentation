@@ -1,8 +1,7 @@
 import shutil
-
 from BPM import BPB
 from DirectoryParser import DirectoryParser
-from Structures import FAT_Reader
+from FAT_Reader import FAT_Reader
 from defragmenter import Defragmenter
 
 class FragmentationChecker:
@@ -31,15 +30,15 @@ class FragmentationChecker:
         return fragmented_files
 
 if __name__ == "__main__":
-    image_path = "FAT_32_fragmented_defragmented" # Убедитесь, что расширение корректно
-    # shutil.copyfile(image_path, f"{image_path}_defragmented")
-    # image_path = f"{image_path}_defragmented"
+    image_path = "FAT_32_fragmented" # Убедитесь, что расширение корректно
+    shutil.copyfile(image_path, f"{image_path}_defragmented")
+    image_path = f"{image_path}_defragmented"
     bpb = BPB(image_path)
     print(f"BPB: bytes_per_sec={bpb.byts_per_sec}, sec_per_clus={bpb.sec_per_clus}, reserved_sec_cnt={bpb.reserved_sec_cnt}, num_FATs={bpb.num_FATs}, total_sec_32={bpb.total_sec_32}, FAT_size_32={bpb.FAT_size_32}, root_clus={bpb.root_clus}")
     fat_reader = FAT_Reader(image_path, bpb)
     parser = DirectoryParser(fat_reader)
     checker = FragmentationChecker(fat_reader)
-    # defragment = Defragmenter(image_path,fat_reader,parser)
+    defragment = Defragmenter(image_path,fat_reader,parser)
 
     all_files = parser.get_all_files(bpb.root_clus)
     fragmented_files = checker.find_fragmented_files(all_files)
@@ -51,4 +50,4 @@ if __name__ == "__main__":
     print("\nФрагментированные файлы:")
     for file in fragmented_files:
         print(file)
-    # defragment.defragment()
+    defragment.defragment()

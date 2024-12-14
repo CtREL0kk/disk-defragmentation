@@ -3,7 +3,7 @@ import struct
 
 import Cluster
 from DirectoryParser import DirectoryParser
-from FAT_Reader import FAT_Reader
+from Structures import FAT_Reader
 
 
 class Defragmenter:

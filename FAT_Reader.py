@@ -2,12 +2,18 @@ from BPM import *
 from Cluster import Cluster
 
 class FAT_Reader:
-    def __init__(self, image_path, bpb):
+    '''
+    Класс для чтения FAT таблицы
+    '''
+    def __init__(self, image_path : str, bpb : BPB) -> None:
         self.image_path = image_path
         self.bpb = bpb
         self.clusters = self._read_FAT()
 
-    def _read_FAT(self):
+    def _read_FAT(self) -> list[Cluster]:
+        '''
+        Читает FAT таблицу, разбивая ее на кластеры
+        '''
         fat_start = self.bpb.reserved_sec_cnt * self.bpb.byts_per_sec
         fat_size = self.bpb.FAT_size_32 * self.bpb.byts_per_sec
         max_clusters = fat_size // 4  # Максимальное количество кластеров в FAT
@@ -23,9 +29,12 @@ class FAT_Reader:
                 clusters.append(Cluster(index=i // 4, next_index=cluster_value, is_end=is_end))
         return clusters
 
-    def get_cluster_chain(self, start_cluster):
+    def get_cluster_chain(self, start_cluster_index : int) -> list[Cluster]:
+        '''
+        Возвращает цепочку кластеров
+        '''
         chain = []
-        current_cluster = start_cluster
+        current_cluster = start_cluster_index
         visited = set()
         while 2 <= current_cluster < len(self.clusters) and self.clusters[current_cluster].is_valid():
             if current_cluster in visited:
@@ -39,7 +48,10 @@ class FAT_Reader:
             current_cluster = cluster_obj.next_index
         return chain
 
-    def read_cluster_data(self, cluster):
+    def read_cluster_data(self, cluster : Cluster) -> bytes:
+        '''
+        Читает данные кластера
+        '''
         cluster_start = (self.bpb.reserved_sec_cnt + self.bpb.num_FATs * self.bpb.FAT_size_32) * self.bpb.byts_per_sec
         cluster_offset = cluster_start + (cluster.index - 2) * self.bpb.sec_per_clus * self.bpb.byts_per_sec
         cluster_size = self.bpb.sec_per_clus * self.bpb.byts_per_sec
@@ -47,8 +59,10 @@ class FAT_Reader:
             image_file.seek(cluster_offset)
             return image_file.read(cluster_size)
 
-    def get_cluster_offset(self, cluster_index):
-        # Вычисляет смещение кластера в байтах
+    def get_cluster_offset(self, cluster_index : int) -> int:
+        '''
+        Вычисляет смещение кластера в байтах
+        '''
         data_region = self.bpb.reserved_sec_cnt + (
                     self.bpb.num_FATs * self.bpb.FAT_size_32)
         cluster_start = data_region * self.bpb.byts_per_sec

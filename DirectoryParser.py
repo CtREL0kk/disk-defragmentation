@@ -1,13 +1,17 @@
 import struct
-
 from FAT_Attributes import FATAttributes
+from FAT_Reader import FAT_Reader
 
 
 class DirectoryParser:
-    def __init__(self, fat_reader):
+    '''
+    Класс для парсинга каталога
+    '''
+    def __init__(self, fat_reader : FAT_Reader) -> None:
         self.fat_reader = fat_reader
 
-    def parse_directory_entries(self, cluster_data):
+    def parse_directory_entries(self, cluster_data : bytes) -> list[dict]:
+
         entries = []
         entry_size = 32
         lfn_entries = []
@@ -74,14 +78,19 @@ class DirectoryParser:
             })
         return entries
 
-    def parse_lfn_entry(self, entry):
-        # Разбираем части длинного имени
+    def parse_lfn_entry(self, entry : bytes) -> str:
+        '''
+        Разбираем части длинного имени
+        '''
         name1 = entry[1:11].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         name2 = entry[14:26].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         name3 = entry[28:32].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         return name1 + name2 + name3
 
-    def get_all_files(self, start_cluster):
+    def get_all_files(self, start_cluster_index : int) -> list[dict]:
+        '''
+        Возвращает список всех пользовательских файлов
+        '''
         all_files = []
 
         def traverse(cluster, path):
@@ -104,10 +113,10 @@ class DirectoryParser:
                             "size": entry["size"]
                         })
 
-        traverse(start_cluster, "")
+        traverse(start_cluster_index, "")
         return all_files
 
-    def update_starting_cluster(self, file_path, new_start_cluster):
+    def update_starting_cluster(self, file_path : str, new_start_cluster_index : int) -> None:
         """
         Обновляет поле starting_cluster для указанного файла в каталоге.
         """
@@ -175,13 +184,13 @@ class DirectoryParser:
                         cluster_offset = self.fat_reader.get_cluster_offset(cluster.index)
                         entry_offset = cluster_offset + i
                         # Обновить high и low слова
-                        high = (new_start_cluster >> 16) & 0xFFFF
-                        low = new_start_cluster & 0xFFFF
+                        high = (new_start_cluster_index >> 16) & 0xFFFF
+                        low = new_start_cluster_index & 0xFFFF
                         f.seek(entry_offset + 20)
                         f.write(struct.pack("<H", high))
                         f.seek(entry_offset + 26)
                         f.write(struct.pack("<H", low))
-                        print(f"Updated starting_cluster for '{file_path}' to {new_start_cluster}.")
+                        print(f"Updated starting_cluster for '{file_path}' to {new_start_cluster_index}.")
                         return  # Завершение после обновления
 
             print(f"File '{file_path}' not found for updating starting_cluster.")
