@@ -30,7 +30,7 @@ class FragmentationChecker:
         return fragmented_files
 
 if __name__ == "__main__":
-    image_path = "FAT_32_fragmented_2_defragmented" # Убедитесь, что расширение корректно
+    image_path = "FAT_32_fragmented_defragmented" # Убедитесь, что расширение корректно
     # shutil.copyfile(image_path, f"{image_path}_defragmented")
     # image_path = f"{image_path}_defragmented"
     bpb = BPB(image_path)

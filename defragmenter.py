@@ -93,19 +93,13 @@ class Defragmenter:
         Копирует данные из одного кластера в другой и проверяет целостность.
         """
         with open(self.image_path, 'r+b') as f:
-            # Читаем данные из старого кластера
             old_data = self.fat_reader.read_cluster_data(self.fat_reader.clusters[old_cluster_index])
-            # Читаем данные из нового кластера для сравнения (до записи)
             f.seek(self.fat_reader.get_cluster_offset(new_cluster_index))
-            new_data_before = f.read(len(old_data))
-            # Пишем данные в новый кластер
             f.seek(self.fat_reader.get_cluster_offset(new_cluster_index))
             f.write(old_data)
-            # Читаем данные после записи для проверки
             f.seek(self.fat_reader.get_cluster_offset(new_cluster_index))
             new_data_after = f.read(len(old_data))
 
-        # Сравниваем хеш-суммы
         if self.calculate_md5(old_data) != self.calculate_md5(new_data_after):
             raise Exception(f"Ошибка копирования данных: Кластер {old_cluster_index} не совпадает с {new_cluster_index}.")
         else:
@@ -124,17 +118,15 @@ class Defragmenter:
         """
         Обновляет FAT таблицу: освобождает старые кластеры и связывает новые кластеры.
         """
-        # Освобождаем старые кластеры
         for cluster in old_clusters:
-            self.fat_reader.clusters[cluster.index].next_index = 0  # Помечаем как свободный
+            self.fat_reader.clusters[cluster.index].next_index = 0
 
-        # Обновляем новые кластеры
         for i in range(len(new_clusters_indicies)):
             current_cluster = new_clusters_indicies[i]
             if i < len(new_clusters_indicies) - 1:
                 self.fat_reader.clusters[current_cluster].next_index = new_clusters_indicies[i + 1]
             else:
-                self.fat_reader.clusters[current_cluster].next_index = 0x0FFFFFFF  # Конец цепочки
+                self.fat_reader.clusters[current_cluster].next_index = 0x0FFFFFFF
         print(f"FAT таблица обновлена для новых кластеров: {new_clusters_indicies}")
 
     def _update_directory_entry(self, file_entry : dict, new_start_cluster_index : int) -> None:
@@ -147,12 +139,8 @@ class Defragmenter:
         """
         Основной метод для дефрагментации файловой системы.
         """
-
-        # Получаем все файлы
         all_files = self.directory_parser.get_all_files(self.bpb.root_clus)
-        # Сортируем файлы по размеру (от большего к меньшему)
-        all_files_sorted = sorted(all_files, key=lambda x: x['size'], reverse=True)
-        fragmented_files = [file for file in all_files_sorted if self.is_fragmented(self.fat_reader.get_cluster_chain(file["starting_cluster"]))]
+        fragmented_files = [file for file in all_files if self.is_fragmented(self.fat_reader.get_cluster_chain(file["starting_cluster"]))]
 
         print(f"Найдено {len(fragmented_files)} фрагментированных файлов для дефрагментации.")
 
@@ -160,27 +148,22 @@ class Defragmenter:
             cluster_chain = self.fat_reader.get_cluster_chain(file["starting_cluster"])
             cluster_indices = [cluster.index for cluster in cluster_chain]
 
-            # Проверяем, является ли файл фрагментированным
             if self.is_fragmented(cluster_chain):
                 print(f"Файл '{file['path']}' фрагментирован {[cluster.index for cluster in cluster_chain]}. Перемещаем...")
 
                 clusters_count = len(cluster_indices)
                 new_clusters = self._allocate_clusters(clusters_count)
 
-                # Копируем данные в новые кластеры
                 for old, new in zip(cluster_indices, new_clusters):
                     self._copy_cluster_data(old, new)
 
-                # Обновляем FAT таблицы
                 old_cluster_objs = [self.fat_reader.clusters[cluster] for cluster in cluster_indices]
                 self._update_FAT(old_cluster_objs, new_clusters)
 
-                # Обновляем `starting_cluster` в записи каталога
                 self._update_directory_entry(file, new_clusters[0])
 
                 print(f"Файл '{file['path']}' перемещен в кластеры: {new_clusters}")
 
-        # После перемещения всех файлов, необходимо записать обновленную FAT таблицу обратно в образ
         self._write_FAT()
         print("Дефрагментация завершена успешно.")
 
@@ -197,7 +180,6 @@ class Defragmenter:
                 fat_entry = cluster.next_index & 0x0FFFFFFF
                 fat_data += struct.pack("<I", fat_entry)
 
-            # Записываем FAT таблицу
             f.seek(fat_start)
             f.write(fat_data[:fat_size])
 
