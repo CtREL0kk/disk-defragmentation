@@ -1,15 +1,7 @@
 from BPM import *
+from Cluster import Cluster
 
-class Cluster:
-    def __init__(self, index, next_index, is_end=False):
-        self.index = index
-        self.next_index = next_index
-        self.is_end = is_end
-
-    def is_valid(self):
-        return 2 <= self.index < 0x0FFFFFF8
-
-class FATReader:
+class FAT_Reader:
     def __init__(self, image_path, bpb):
         self.image_path = image_path
         self.bpb = bpb
@@ -54,3 +46,10 @@ class FATReader:
         with open(self.image_path, 'rb') as image_file:
             image_file.seek(cluster_offset)
             return image_file.read(cluster_size)
+
+    def get_cluster_offset(self, cluster_index):
+        # Вычисляет смещение кластера в байтах
+        data_region = self.bpb.reserved_sec_cnt + (
+                    self.bpb.num_FATs * self.bpb.FAT_size_32)
+        cluster_start = data_region * self.bpb.byts_per_sec
+        return cluster_start + (cluster_index - 2) * self.bpb.sec_per_clus * self.bpb.byts_per_sec

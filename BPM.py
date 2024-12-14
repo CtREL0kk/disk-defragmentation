@@ -1,14 +1,4 @@
 import struct
-from collections import namedtuple
-from enum import IntFlag
-
-class FATAttributes(IntFlag):
-    READ_ONLY = 0x01
-    HIDDEN = 0x02
-    SYSTEM = 0x04
-    VOLUME_ID = 0x08
-    DIRECTORY = 0x10
-    ARCHIVE = 0x20
 
 class BPB:
     def __init__(self, image_path):
