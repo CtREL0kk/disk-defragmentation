@@ -145,7 +145,6 @@ class DirectoryParser:
                     entry_offset = cluster_offset + i
                     return entry_offset, cluster.index
 
-            lfn_entries = []
         return None
 
     def navigate_path(self, path_parts: list[str]) -> int | None:

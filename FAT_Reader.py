@@ -17,7 +17,7 @@ class FAT_Reader:
         '''
         fat_start = self.bpb.reserved_sec_cnt * self.bpb.byts_per_sec
         fat_size = self.bpb.FAT_size_32 * self.bpb.byts_per_sec
-        max_clusters = fat_size // 4  # Максимальное количество кластеров в FAT
+        max_clusters = fat_size // 4
         clusters = []
         with open(self.image_path, 'rb') as image_file:
             image_file.seek(fat_start)
