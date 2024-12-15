@@ -1,4 +1,3 @@
-import hashlib
 import struct
 
 import Cluster
@@ -100,19 +99,6 @@ class Defragmenter:
             f.seek(self.fat_reader.get_cluster_offset(new_cluster_index))
             new_data_after = f.read(len(old_data))
 
-        if self.calculate_md5(old_data) != self.calculate_md5(new_data_after):
-            raise Exception(f"Ошибка копирования данных: Кластер {old_cluster_index} не совпадает с {new_cluster_index}.")
-        else:
-            print(f"Данные из кластера {old_cluster_index} успешно скопированы в {new_cluster_index}.")
-
-    @staticmethod
-    def calculate_md5(data : bytes) -> str:
-        """
-        Вычисляет MD5-хеш данных.
-        """
-        hash_md5 = hashlib.md5()
-        hash_md5.update(data)
-        return hash_md5.hexdigest()
 
     def _update_FAT(self, old_clusters :  list[Cluster], new_clusters_indicies : list[int]) -> None:
         """
