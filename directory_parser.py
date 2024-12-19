@@ -1,24 +1,29 @@
 import struct
-from FAT_Attributes import FATAttributes
-from FAT_Reader import FAT_Reader
 
+from fat_attributes import FatAttributes
+from fat_reader import FatReader
+
+ENTRY_SIZE = 32
+EMPTY_ENTRY_MARK = 0x00
+DELETED_ENTRY_MARK = 0xE5
+MIN_VALID_INDEX = 2
 
 class DirectoryParser:
-    '''
+    """
     Класс для парсинга каталога
-    '''
-    def __init__(self, fat_reader : FAT_Reader) -> None:
+    """
+    def __init__(self, fat_reader: FatReader) -> None:
         self.fat_reader = fat_reader
 
-    def parse_directory_entries(self, cluster_data : bytes) -> list[dict]:
-        entries = []
-        entry_size = 32
-        lfn_entries = []
-        for i in range(0, len(cluster_data), entry_size):
-            entry = cluster_data[i:i + entry_size]
-            if entry[0] == 0x00:
+    def parse_directory_entries(self, cluster_data: bytes) -> list[dict]:
+        entries: list[dict] = []
+        lfn_entries: list[str] = []
+
+        for i in range(0, len(cluster_data), ENTRY_SIZE):
+            entry = cluster_data[i:i + ENTRY_SIZE]
+            if entry[0] == EMPTY_ENTRY_MARK:
                 break
-            if entry[0] == 0xE5:
+            if entry[0] == DELETED_ENTRY_MARK:
                 continue
 
             parsed_entry = self.parse_single_entry(entry, lfn_entries)
@@ -29,8 +34,7 @@ class DirectoryParser:
             if full_name in ('.', '..'):
                 lfn_entries = []
                 continue
-
-            if starting_cluster < 2 or starting_cluster >= len(self.fat_reader.clusters):
+            if starting_cluster < MIN_VALID_INDEX or starting_cluster >= len(self.fat_reader.clusters):
                 print(f"Предупреждение: Неверный начальный кластер {starting_cluster} для файла {full_name}")
                 lfn_entries = []
                 continue
@@ -44,13 +48,13 @@ class DirectoryParser:
             lfn_entries = []
         return entries
 
-    def parse_single_entry(self, entry: bytes, lfn_entries: list[str]) -> tuple[str, FATAttributes, int, int] | None:
-        '''
+    def parse_single_entry(self, entry: bytes, lfn_entries: list[str]) -> tuple[str, FatAttributes, int, int] | None:
+        """
         Разбор одной записи (32 байта). Возвращает кортеж (full_name, attrs, starting_cluster, file_size) или None,
         если запись обрабатывать не нужно (например, LFN-части).
-        '''
-        attrs = FATAttributes(entry[11])
-        if (attrs & FATAttributes.LONG_NAME) == FATAttributes.LONG_NAME:
+        """
+        attrs = FatAttributes(entry[11])
+        if (attrs & FatAttributes.LONG_NAME) == FatAttributes.LONG_NAME:
             lfn_part = self.parse_lfn_entry(entry)
             lfn_entries.insert(0, lfn_part)
             return None
@@ -70,33 +74,40 @@ class DirectoryParser:
         starting_cluster = (high << 16) | low
         file_size = struct.unpack("<I", entry[28:32])[0]
 
-        return (full_name, attrs, starting_cluster, file_size)
+        return full_name, attrs, starting_cluster, file_size
 
-    def parse_lfn_entry(self, entry : bytes) -> str:
-        '''
+    def parse_lfn_entry(self, entry: bytes) -> str:
+        """
         Разбираем части длинного имени
-        '''
+        """
         name1 = entry[1:11].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         name2 = entry[14:26].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         name3 = entry[28:32].decode('utf-16le', errors='ignore').rstrip('\x00').rstrip('\xFF')
         return name1 + name2 + name3
 
-    def get_all_files(self, start_cluster_index : int) -> list[dict]:
-        all_files = []
+    def get_all_files(self, start_cluster_index: int) -> list[dict]:
+        """
+        Получает список всех файлов в каталоге, начиная с заданного кластера.
+        """
+        all_files: list[dict] = []
 
-        def traverse(cluster_index, path):
+        def traverse(cluster_index: int, path: str) -> None:
             print(f"Обрабатываем каталог: {path if path else 'root'} (Кластер: {cluster_index})")
             cluster_chain = self.fat_reader.get_cluster_chain(cluster_index)
             for cluster_obj in cluster_chain:
                 cluster_data = self.fat_reader.read_cluster_data(cluster_obj)
                 entries = self.parse_directory_entries(cluster_data)
+
                 for entry in entries:
                     file_path = f"{path}/{entry['name']}" if path else entry['name']
                     print(f"Найдено: {file_path} (Атрибуты: {entry['attributes']})")
+
                     if entry['name'] in ('.', '..'):
                         continue
-                    if (entry["attributes"] & FATAttributes.DIRECTORY) and entry["starting_cluster"] != 0:
+
+                    if (entry["attributes"] & FatAttributes.DIRECTORY) and entry["starting_cluster"] != 0:
                         traverse(entry["starting_cluster"], file_path)
+
                     elif entry["starting_cluster"] != 0:
                         all_files.append({
                             "path": file_path,
@@ -108,25 +119,24 @@ class DirectoryParser:
         return all_files
 
     def find_directory_entry(self, dir_cluster_index: int, target_name: str) -> tuple[int, int] | None:
-        '''
+        """
         Ищет запись файла или каталога в заданном кластере. Возвращает смещение записи и индекс кластера,
         в котором она найдена.
-        '''
+        """
         cluster_chain = self.fat_reader.get_cluster_chain(dir_cluster_index)
-        entry_size = 32
 
         for cluster in cluster_chain:
             cluster_data = self.fat_reader.read_cluster_data(cluster)
             lfn_entries = []
-            for i in range(0, len(cluster_data), entry_size):
-                entry = cluster_data[i:i + entry_size]
-                if entry[0] == 0x00:
+            for i in range(0, len(cluster_data), ENTRY_SIZE):
+                entry = cluster_data[i:i + ENTRY_SIZE]
+                if entry[0] == EMPTY_ENTRY_MARK:
                     break
-                if entry[0] == 0xE5:
+                if entry[0] == DELETED_ENTRY_MARK:
                     continue
 
-                attrs = FATAttributes(entry[11])
-                if (attrs & FATAttributes.LONG_NAME) == FATAttributes.LONG_NAME:
+                attrs = FatAttributes(entry[11])
+                if (attrs & FatAttributes.LONG_NAME) == FatAttributes.LONG_NAME:
                     lfn_part = self.parse_lfn_entry(entry)
                     lfn_entries.insert(0, lfn_part)
                     continue
@@ -148,9 +158,9 @@ class DirectoryParser:
         return None
 
     def navigate_path(self, path_parts: list[str]) -> int | None:
-        '''
+        """
         Переходит по пути, возвращая кластер каталога, в котором находится последний элемент.
-        '''
+        """
         current_cluster = self.fat_reader.bpb.root_clus
         for part in path_parts[:-1]:
             found_cluster = self.find_subdirectory_cluster(current_cluster, part)
@@ -161,20 +171,20 @@ class DirectoryParser:
         return current_cluster
 
     def find_subdirectory_cluster(self, dir_cluster_index: int, subdir_name: str) -> int | None:
-        '''
+        """
         Ищет подкаталог subdir_name в заданном каталоге, возвращает кластер этого подкаталога
-        '''
+        """
         cluster_chain = self.fat_reader.get_cluster_chain(dir_cluster_index)
 
         for cluster in cluster_chain:
             cluster_data = self.fat_reader.read_cluster_data(cluster)
             entries = self.parse_directory_entries(cluster_data)
             for entry in entries:
-                if entry["name"].lower() == subdir_name.lower() and (entry["attributes"] & FATAttributes.DIRECTORY):
+                if entry["name"].lower() == subdir_name.lower() and (entry["attributes"] & FatAttributes.DIRECTORY):
                     return entry["starting_cluster"]
         return None
 
-    def update_starting_cluster(self, file_path : str, new_start_cluster_index : int) -> None:
+    def update_starting_cluster(self, file_path: str, new_start_cluster_index: int) -> None:
         """
         Обновляет поле starting_cluster для указанного файла в каталоге.
         """
@@ -192,6 +202,7 @@ class DirectoryParser:
             entry_offset, cluster_index = result
             high = (new_start_cluster_index >> 16) & 0xFFFF
             low = new_start_cluster_index & 0xFFFF
+
             f.seek(entry_offset + 20)
             f.write(struct.pack("<H", high))
             f.seek(entry_offset + 26)

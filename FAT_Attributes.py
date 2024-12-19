@@ -1,6 +1,6 @@
 from enum import IntFlag
 
-class FATAttributes(IntFlag):
+class FatAttributes(IntFlag):
     READ_ONLY = 0x01
     HIDDEN = 0x02
     SYSTEM = 0x04
