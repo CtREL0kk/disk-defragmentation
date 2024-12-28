@@ -1,4 +1,5 @@
 import struct
+from pathlib import Path
 
 from bpb import BPB
 from cluster import Cluster
@@ -11,7 +12,7 @@ class FatReader:
     """
     Класс для чтения FAT таблицы
     """
-    def __init__(self, image_path: str, bpb: BPB) -> None:
+    def __init__(self, image_path: Path, bpb: BPB) -> None:
         self.image_path = image_path
         self.bpb = bpb
         self.cluster_size = self.bpb.sec_per_clus * self.bpb.byts_per_sec
