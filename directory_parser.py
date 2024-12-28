@@ -1,4 +1,5 @@
 import struct
+from typing import Any
 
 from fat_attributes import FatAttributes
 from fat_reader import FatReader
@@ -60,8 +61,7 @@ class DirectoryParser:
             return None
 
         if lfn_entries:
-            full_name = ''.join(lfn_entries)
-            full_name = ''.join(c for c in full_name if c.isprintable())
+            full_name = ''.join(c for c in ''.join(lfn_entries) if c.isprintable())
         else:
             name = entry[0:8].decode('ascii', errors='ignore').strip()
             extension = entry[8:11].decode('ascii', errors='ignore').strip()
@@ -89,7 +89,7 @@ class DirectoryParser:
         """
         Получает список всех файлов в каталоге, начиная с заданного кластера.
         """
-        all_files: list[dict] = []
+        all_files: list[dict[str, Any]] = []
 
         def traverse(cluster_index: int, path: str) -> None:
             print(f"Обрабатываем каталог: {path if path else 'root'} (Кластер: {cluster_index})")

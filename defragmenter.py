@@ -9,6 +9,8 @@ FAT_END_MASK = 0x0FFFFFF8
 FAT_ENTRY_MASK = 0x0FFFFFFF
 FAT_FREE_MASK = 0x00000000
 
+ClusterIndexList = list[int]
+
 class Defragmenter:
     """
     Класс для дефрагментации файловой системы FAT32.
@@ -51,8 +53,8 @@ class Defragmenter:
         """
         Проверяет, является ли кластерная цепочка фрагментированной.
         """
-        for i in range(len(cluster_chain) - 1):
-            if cluster_chain[i].next_index != (cluster_chain[i].index + 1):
+        for cluster_index in range(len(cluster_chain) - 1):
+            if cluster_chain[cluster_index].next_index != (cluster_chain[cluster_index].index + 1):
                 return True
         return False
 
@@ -62,12 +64,12 @@ class Defragmenter:
         """
         return [cluster.index for cluster in self._fat_reader.clusters if cluster.next_index == FAT_FREE_MASK]
 
-    def _find_free_blocks(self) -> list[list[int]]:
+    def _find_free_blocks(self) -> list[ClusterIndexList]:
         """
         Находит все непрерывные блоки свободных кластеров.
         """
         free_sorted = sorted(self._free_clusters)
-        blocks: list[list[int]] = []
+        blocks: list[ClusterIndexList] = []
         current_block: list[int] = []
 
         for cluster in free_sorted:
@@ -102,8 +104,7 @@ class Defragmenter:
         if best_fit:
             print(f"Best-Fit найден: {best_fit} с переполнением {min_overflow}")
             return best_fit
-        else:
-            raise Exception("Не удалось найти подходящий блок свободных кластеров.")
+        raise Exception("Не удалось найти подходящий блок свободных кластеров.")
 
     def _allocate_clusters(self, clusters_count: int) -> list[int]:
         """
