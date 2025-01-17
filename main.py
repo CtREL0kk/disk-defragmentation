@@ -6,18 +6,81 @@ from bpb import BPB
 from directory_parser import DirectoryParser
 from fat_reader import FatReader
 from defragmenter import Defragmenter
+from fragmenter import Fragmenter
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("image_path", type=str)
+subparsers = arg_parser.add_subparsers(dest='command', help='Доступные команды', required=True)
+
+defrag_parser = subparsers.add_parser('defragment')
+defrag_parser.add_argument("image_path", type=str, help="Путь к образу файловой системы FAT32")
+
+frag_parser = subparsers.add_parser('fragment')
+frag_parser.add_argument("image_path", type=str, help="Путь к образу файловой системы FAT32")
+frag_parser.add_argument("file_path", type=str, help="Путь к файлу для фрагментации")
+
+check_parser = subparsers.add_parser('check', help="Просмотреть фрагментированные файлы")
+check_parser.add_argument("image_path", type=str, help="Путь к образу файловой системы FAT32")
+
+
+class FragmentationChecker:
+    def __init__(self, fat_reader):
+        self.fat_reader = fat_reader
+
+    def is_fragmented(self, cluster_chain):
+        for i in range(len(cluster_chain) - 1):
+            if cluster_chain[i].next_index != (cluster_chain[i].index + 1):
+                return True
+        return False
+
+    def find_fragmented_files(self, files):
+        fragmented_files = []
+        for file_entry in files:
+            cluster_chain = self.fat_reader.get_cluster_chain(file_entry["starting_cluster"])
+            for ind in [cluster.index for cluster in cluster_chain]:
+                print(ind, end=" ")
+            print()
+            if self.is_fragmented(cluster_chain):
+                fragmented_files.append({
+                    "path": file_entry["path"],
+                    "cluster_chain": [cluster.index for cluster in cluster_chain]
+                })
+
+        return fragmented_files
+
 
 if __name__ == "__main__":
     args = arg_parser.parse_args()
-    image_path = Path(args.image_path)
-    final_image_path = image_path.with_name(f"{image_path.name}_defragmented")
+    command = args.command
 
-    shutil.copyfile(image_path, final_image_path)
+    image_path = Path(args.image_path)
+    final_image_path = image_path.with_name(f"{image_path.name}_{command}ed")
+
+    if command == "check":
+        final_image_path = image_path
+    else:
+        shutil.copyfile(image_path, final_image_path)
+        
     bpb = BPB(final_image_path)
     fat_reader = FatReader(final_image_path, bpb)
     parser = DirectoryParser(fat_reader)
-    defragmenter = Defragmenter(image_path, fat_reader, parser)
-    defragmenter.defragment()
+    checker = FragmentationChecker(fat_reader)
+
+    if command == "check":
+        all_files = parser.get_all_files(bpb.root_clus)
+        fragmented_files = checker.find_fragmented_files(all_files)
+        print("\nВсе файлы:")
+        for file in all_files:
+            print(file)
+
+        print("\nФрагментированные файлы:")
+        for file in fragmented_files:
+            print(file)
+
+    elif command == "defragment":
+        defragmenter = Defragmenter(image_path, fat_reader, parser)
+        defragmenter.defragment()
+
+    elif command == "fragment":
+        file_path = Path(args.file_path)
+        fragmenter = Fragmenter(final_image_path, fat_reader, parser)
+        fragmenter.fragment_file(args.file_path)
