@@ -7,6 +7,7 @@ from directory_parser import DirectoryParser
 from fat_reader import FatReader
 from defragmenter import Defragmenter
 from fragmenter import Fragmenter
+from cluster_manager import ClusterManager
 
 arg_parser = argparse.ArgumentParser()
 subparsers = arg_parser.add_subparsers(dest='command', help='Доступные команды', required=True)
@@ -22,32 +23,6 @@ check_parser = subparsers.add_parser('check', help="Просмотреть фр�
 check_parser.add_argument("image_path", type=str, help="Путь к образу файловой системы FAT32")
 
 
-class FragmentationChecker:
-    def __init__(self, fat_reader):
-        self.fat_reader = fat_reader
-
-    def is_fragmented(self, cluster_chain):
-        for i in range(len(cluster_chain) - 1):
-            if cluster_chain[i].next_index != (cluster_chain[i].index + 1):
-                return True
-        return False
-
-    def find_fragmented_files(self, files):
-        fragmented_files = []
-        for file_entry in files:
-            cluster_chain = self.fat_reader.get_cluster_chain(file_entry["starting_cluster"])
-            for ind in [cluster.index for cluster in cluster_chain]:
-                print(ind, end=" ")
-            print()
-            if self.is_fragmented(cluster_chain):
-                fragmented_files.append({
-                    "path": file_entry["path"],
-                    "cluster_chain": [cluster.index for cluster in cluster_chain]
-                })
-
-        return fragmented_files
-
-
 if __name__ == "__main__":
     args = arg_parser.parse_args()
     command = args.command
@@ -59,22 +34,21 @@ if __name__ == "__main__":
         final_image_path = image_path
     else:
         shutil.copyfile(image_path, final_image_path)
-        
+
     bpb = BPB(final_image_path)
     fat_reader = FatReader(final_image_path, bpb)
     parser = DirectoryParser(fat_reader)
-    checker = FragmentationChecker(fat_reader)
 
     if command == "check":
         all_files = parser.get_all_files(bpb.root_clus)
-        fragmented_files = checker.find_fragmented_files(all_files)
+        fragmented_files = ClusterManager(image_path, fat_reader, parser).find_fragmented_files(all_files)
         print("\nВсе файлы:")
         for file in all_files:
-            print(file)
+            print(f"path: {file['path']}, starting_cluster: {file['starting_cluster']}, size: {file['size']}")
 
         print("\nФрагментированные файлы:")
         for file in fragmented_files:
-            print(file)
+            print(f"path: {file['path']}, cluster_chain: {file['cluster_chain']}")
 
     elif command == "defragment":
         defragmenter = Defragmenter(image_path, fat_reader, parser)
