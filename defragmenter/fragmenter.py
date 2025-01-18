@@ -1,9 +1,9 @@
 import random
 from pathlib import Path
 
-from fat_reader import FatReader
-from directory_parser import DirectoryParser
-from cluster_manager import ClusterManager
+from defragmenter.fat_reader import FatReader
+from defragmenter.directory_parser import DirectoryParser
+from defragmenter.cluster_manager import ClusterManager
 
 FAT_ENTRY_MASK = 0x0FFFFFFF
 FAT_FREE_MASK = 0x00000000
@@ -22,15 +22,15 @@ class Fragmenter(ClusterManager):
         Фрагментирует указанный файл, разбивая его на несмежные кластеры.
         """
         all_files = self._directory_parser.get_all_files(self._bpb.root_clus)
-        target_file = next(f for f in all_files if f["path"] == file_path)
+        target_file = next((f for f in all_files if Path(f["path"]) == file_path), None)
+        if not target_file:
+            raise FileNotFoundError(f"Файл {file_path} не найден")
 
         cluster_chain = self._fat_reader.get_cluster_chain(target_file["starting_cluster"])
-        print(cluster_chain)
         cluster_indices = [cluster.index for cluster in cluster_chain]
 
         if len(cluster_indices) < 2:
-            print(f"Файл '{file_path}' слишком мал для фрагментации.")
-            return
+            raise ValueError(f"Файл '{file_path}' слишком мал для фрагментации.")
 
         print(f"Фрагментируем файл '{file_path}'")
 

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from cluster_manager import ClusterManager
-from directory_parser import DirectoryParser
-from fat_reader import FatReader
+from defragmenter.cluster_manager import ClusterManager
+from defragmenter.directory_parser import DirectoryParser
+from defragmenter.fat_reader import FatReader
 
 FAT_ENTRY_MASK = 0x0FFFFFFF
 FAT_FREE_MASK = 0x00000000

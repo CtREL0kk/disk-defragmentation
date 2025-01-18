@@ -2,12 +2,12 @@ import shutil
 import argparse
 from pathlib import Path
 
-from bpb import BPB
-from directory_parser import DirectoryParser
-from fat_reader import FatReader
-from defragmenter import Defragmenter
-from fragmenter import Fragmenter
-from cluster_manager import ClusterManager
+from defragmenter.bpb import BPB
+from defragmenter.directory_parser import DirectoryParser
+from defragmenter.fat_reader import FatReader
+from defragmenter.defragmenter import Defragmenter
+from defragmenter.fragmenter import Fragmenter
+from defragmenter.cluster_manager import ClusterManager
 
 arg_parser = argparse.ArgumentParser()
 subparsers = arg_parser.add_subparsers(dest='command', help='Доступные команды', required=True)
@@ -51,10 +51,10 @@ if __name__ == "__main__":
             print(f"path: {file['path']}, cluster_chain: {file['cluster_chain']}")
 
     elif command == "defragment":
-        defragmenter = Defragmenter(image_path, fat_reader, parser)
+        defragmenter = Defragmenter(final_image_path, fat_reader, parser)
         defragmenter.defragment()
 
     elif command == "fragment":
         file_path = Path(args.file_path)
         fragmenter = Fragmenter(final_image_path, fat_reader, parser)
-        fragmenter.fragment_file(args.file_path)
+        fragmenter.fragment_file(Path(args.file_path))

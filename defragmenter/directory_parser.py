@@ -1,8 +1,8 @@
 import struct
 from typing import Any
 
-from fat_attributes import FatAttributes
-from fat_reader import FatReader
+from defragmenter.fat_attributes import FatAttributes
+from defragmenter.fat_reader import FatReader
 
 ENTRY_SIZE = 32
 EMPTY_ENTRY_MARK = 0x00
