@@ -1,8 +1,8 @@
 import struct
 from pathlib import Path
 
-from bpb import BPB
-from cluster import Cluster
+from defragmenter.bpb import BPB
+from defragmenter.cluster import Cluster
 
 FAT_ENTRY_SIZE = 4
 FAT_ENTRY_MASK = 0x0FFFFFFF
